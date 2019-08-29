@@ -7,7 +7,7 @@
     </template>
     <template v-else>
       <nuxt-link to="/login" class="login">立即登录</nuxt-link>
-      <nuxt-link to="/regiser" class="register">注册</nuxt-link>
+      <nuxt-link to="/register" class="register">注册</nuxt-link>
     </template>
   </div>
 </template>
