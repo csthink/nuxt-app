@@ -1,17 +1,38 @@
-// const Koa = require('koa')
 import Koa from 'koa'
-const consola = require('consola')
-const { Nuxt, Builder } = require('nuxt')
+import consola from 'consola'
+import { Nuxt, Builder } from 'nuxt'
+import mongoose from 'mongoose'
+import bodyParser from 'koa-bodyparser'
+import session from 'koa-generic-session'
+import Redis from 'koa-redis'
+import json from 'koa-json'
+import nuxtConfig from '../nuxt.config'
+import users from './api/users'
+import passport from './helpers/passport'
+import serverConfig from './config/index'
 
 const app = new Koa()
 
-// Import and Set Nuxt.js options
-const config = require('../nuxt.config.js')
-config.dev = app.env !== 'production'
+app.keys = ['keys', 'keykeys']
+app.proxy = true
+app.use(session({ key: 'ssr', prefix: 'ssr:uid', store: new Redis() }))
+// 处理POST请求，把 koa2上下文的 formData 数据解析到 ctx.request.body
+app.use(
+  bodyParser({
+    extendTypes: ['json', 'form', 'text']
+  })
+)
+app.use(json())
+// 连接 mongodb
+mongoose.connect(serverConfig.mongo.URI, serverConfig.mongo.OPTIONS)
+app.use(passport.initialize())
+app.use(passport.session())
+
+// Set Nuxt.js options
+nuxtConfig.dev = app.env !== 'production'
 
 async function start() {
-  // Instantiate nuxt.js
-  const nuxt = new Nuxt(config)
+  const nuxt = new Nuxt(nuxtConfig)
 
   const {
     host = process.env.HOST || '127.0.0.1',
@@ -19,12 +40,14 @@ async function start() {
   } = nuxt.options.server
 
   // Build in development
-  if (config.dev) {
+  if (nuxtConfig.dev) {
     const builder = new Builder(nuxt)
     await builder.build()
   } else {
     await nuxt.ready()
   }
+
+  app.use(users.routes()).use(users.allowedMethods())
 
   app.use((ctx) => {
     ctx.status = 200
